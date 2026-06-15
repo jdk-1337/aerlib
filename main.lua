@@ -41,7 +41,35 @@ local FallbackIcons = {
     check = "rbxassetid://10709790644",
     close = "rbxassetid://10734951535",
     crosshair = "rbxassetid://10709818534",
-    sword = "rbxassetid://10734975486"
+    sword = "rbxassetid://10734975486",
+    swords = "rbxassetid://10734975692",
+    ["shield-alert"] = "rbxassetid://10734951173",
+    ["shield-check"] = "rbxassetid://10734951367",
+    heart = "rbxassetid://10723406885",
+    ["heart-crack"] = "rbxassetid://10723406299",
+    crown = "rbxassetid://10709818626",
+    star = "rbxassetid://10734966248",
+    trophy = "rbxassetid://10747363809",
+    skull = "rbxassetid://10734962068",
+    bomb = "rbxassetid://10709781460",
+    flame = "rbxassetid://10723376114",
+    flashlight = "rbxassetid://10723376471",
+    mouse = "rbxassetid://10734898592",
+    pointer = "rbxassetid://10734929723",
+    keyboard = "rbxassetid://10723416765",
+    file = "rbxassetid://10723374641",
+    command = "rbxassetid://10709811365",
+    ["refresh-cw"] = "rbxassetid://10734933222",
+    ["trash-2"] = "rbxassetid://10747362241",
+    edit = "rbxassetid://10734883598",
+    pause = "rbxassetid://10734919336",
+    ["fast-forward"] = "rbxassetid://10723354521",
+    download = "rbxassetid://10723344270",
+    upload = "rbxassetid://10747366434",
+    unlock = "rbxassetid://10747366027",
+    key = "rbxassetid://10723416652",
+    ["alert-triangle"] = "rbxassetid://10709753149",
+    ["alert-circle"] = "rbxassetid://10709752996"
 }
 setmetatable(LucideIcons, { __index = FallbackIcons })
 
@@ -192,6 +220,25 @@ function AerLib:SetAccentColor(newAccent, newHover)
             end
         end
     end
+    
+    -- Update active info toasts too
+    if self.ToastList then
+        for _, container in ipairs(self.ToastList:GetChildren()) do
+            if container:IsA("Frame") then
+                local toastFrame = container:FindFirstChild("ToastFrame")
+                if toastFrame then
+                    for _, desc in ipairs(toastFrame:GetDescendants()) do
+                        if desc:IsA("UIGradient") and desc.Name == "AccentGradient" then
+                            desc.Color = ColorSequence.new({
+                                ColorSequenceKeypoint.new(0, newAccent),
+                                ColorSequenceKeypoint.new(1, self.Theme.AccentHover)
+                            })
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 -- Toast Notification Manager
@@ -227,65 +274,178 @@ function AerLib:Toast(title, message, duration, type)
         }, self.ToastList)
     end
     
-    local toast = CreateInstance("Frame", {
-        Size = UDim2.new(1, 0, 0, 0),
-        BackgroundColor3 = self.Theme.Background,
-        BackgroundTransparency = 0.05,
+    local toastContainer = CreateInstance("Frame", {
+        Size = UDim2.new(1, 0, 0, 0), -- Expand vertically during tween
+        BackgroundTransparency = 1,
         ClipsDescendants = true,
         LayoutOrder = #self.ToastList:GetChildren()
     }, self.ToastList)
     
-    CreateInstance("UICorner", { CornerRadius = UDim.new(0, 6) }, toast)
+    local toastFrame = CreateInstance("Frame", {
+        Name = "ToastFrame",
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(1, 50, 0, 0), -- Slide in from right
+        BackgroundColor3 = self.Theme.Background,
+        BackgroundTransparency = 0.08,
+        ClipsDescendants = true
+    }, toastContainer)
+    
+    CreateInstance("UICorner", { CornerRadius = UDim.new(0, 6) }, toastFrame)
+    
+    -- Diagonal metallic background gradient
+    local bgGrad = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 22, 22)),
+            ColorSequenceKeypoint.new(1, self.Theme.Background)
+        }),
+        Rotation = 135
+    }, toastFrame)
     
     local border = CreateInstance("UIStroke", {
         Color = self.Theme.ElementBorder,
         Thickness = 1,
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    }, toast)
+    }, toastFrame)
     
-    local accentBar = CreateInstance("Frame", {
-        Size = UDim2.new(0, 4, 1, 0),
+    -- Diagonal border highlighting matching the status category
+    local borderGrad = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Theme.ElementBorder),
+            ColorSequenceKeypoint.new(0.5, self.Theme.ElementBorder),
+            ColorSequenceKeypoint.new(1, toastColor)
+        }),
+        Rotation = 45
+    }, border)
+    
+    -- Soft category icon container
+    local iconBg = CreateInstance("Frame", {
+        Size = UDim2.new(0, 26, 0, 26),
+        Position = UDim2.new(0, 8, 0.5, -13),
         BackgroundColor3 = toastColor,
+        BackgroundTransparency = 0.92,
         BorderSizePixel = 0
-    }, toast)
+    }, toastFrame)
+    CreateInstance("UICorner", { CornerRadius = UDim.new(1, 0) }, iconBg)
+    
+    -- Icon resolution
+    local toastIconName = "info"
+    if type == "success" then
+        toastIconName = "shield-check"
+    elseif type == "warning" then
+        toastIconName = "alert-triangle"
+    elseif type == "danger" then
+        toastIconName = "alert-circle"
+    end
+    
+    local iconId = LucideIcons[toastIconName]
+    local iconLabel = CreateInstance("ImageLabel", {
+        Size = UDim2.new(0, 18, 0, 18),
+        Position = UDim2.new(0.5, -9, 0.5, -9),
+        BackgroundTransparency = 1,
+        Image = iconId or "",
+        ImageColor3 = toastColor
+    }, iconBg)
     
     local contentFrame = CreateInstance("Frame", {
-        Size = UDim2.new(1, -14, 1, 0),
-        Position = UDim2.new(0, 10, 0, 0),
+        Size = UDim2.new(1, -54, 1, 0),
+        Position = UDim2.new(0, 42, 0, 0),
         BackgroundTransparency = 1
-    }, toast)
+    }, toastFrame)
     
     local toastTitle = CreateInstance("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 20),
-        Position = UDim2.new(0, 0, 0, 6),
+        Size = UDim2.new(1, -20, 0, 20),
+        Position = UDim2.new(0, 0, 0, 8),
         BackgroundTransparency = 1,
         Text = title,
         TextColor3 = self.Theme.Text,
         Font = self.Theme.FontBold,
-        TextSize = 14,
+        TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left
     }, contentFrame)
     
     local toastMsg = CreateInstance("TextLabel", {
-        Size = UDim2.new(1, 0, 1, -30),
+        Size = UDim2.new(1, -20, 1, -34),
         Position = UDim2.new(0, 0, 0, 24),
         BackgroundTransparency = 1,
         Text = message,
         TextColor3 = self.Theme.TextSecondary,
         Font = self.Theme.Font,
-        TextSize = 12,
+        TextSize = 11,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Top
     }, contentFrame)
     
-    Tween(toast, 0.3, { Size = UDim2.new(1, 0, 0, 70) })
+    -- Close button
+    local closeBtn = CreateInstance("TextButton", {
+        Size = UDim2.new(0, 16, 0, 16),
+        Position = UDim2.new(1, -22, 0, 6),
+        BackgroundTransparency = 1,
+        Text = "×",
+        TextColor3 = self.Theme.TextSecondary,
+        Font = self.Theme.FontBold,
+        TextSize = 14,
+        ZIndex = 10
+    }, toastFrame)
     
-    task.delay(duration, function()
-        Tween(toast, 0.3, { Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1 })
+    -- Thin draining progress bar
+    local progressBar = CreateInstance("Frame", {
+        Size = UDim2.new(1, 0, 0, 2),
+        Position = UDim2.new(0, 0, 1, -2),
+        BackgroundColor3 = toastColor,
+        BorderSizePixel = 0,
+        ZIndex = 5
+    }, toastFrame)
+    
+    local progressGrad = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, toastColor),
+            ColorSequenceKeypoint.new(1, toastColor:Lerp(Color3.new(1, 1, 1), 0.3))
+        })
+    }, progressBar)
+    progressGrad.Name = type == "info" and "AccentGradient" or "ProgressGrad"
+    
+    -- Entrances
+    Tween(toastContainer, 0.35, { Size = UDim2.new(1, 0, 0, 64) }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
+    Tween(toastFrame, 0.35, { Position = UDim2.new(0, 0, 0, 0) }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
+    
+    local progressTween = TweenService:Create(progressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(0, 0, 0, 2)
+    })
+    
+    local isDestroyed = false
+    local function Dismiss()
+        if isDestroyed then return end
+        isDestroyed = true
+        progressTween:Cancel()
+        
+        Tween(toastFrame, 0.3, { Position = UDim2.new(1, 50, 0, 0), BackgroundTransparency = 1 })
+        Tween(toastContainer, 0.3, { Size = UDim2.new(1, 0, 0, 0) })
         task.wait(0.3)
-        toast:Destroy()
+        toastContainer:Destroy()
+    end
+    
+    local mouseConnEnter = toastFrame.MouseEnter:Connect(function()
+        progressTween:Pause()
+        Tween(border, 0.15, { Color = toastColor })
+        Tween(iconBg, 0.15, { BackgroundTransparency = 0.82 })
     end)
+    
+    local mouseConnLeave = toastFrame.MouseLeave:Connect(function()
+        progressTween:Play()
+        Tween(border, 0.15, { Color = self.Theme.ElementBorder })
+        Tween(iconBg, 0.15, { BackgroundTransparency = 0.92 })
+    end)
+    
+    closeBtn.MouseButton1Click:Connect(Dismiss)
+    
+    progressTween.Completed:Connect(function(state)
+        if state == Enum.PlaybackState.Completed then
+            Dismiss()
+        end
+    end)
+    
+    progressTween:Play()
 end
 
 -- Window Class
@@ -326,6 +486,22 @@ function AerLib:CreateWindow(title, subtitle)
         }),
         Rotation = 90
     }, titleBar)
+    
+    -- Glowing horizontal separator line beneath titlebar
+    local titleBarLine = CreateInstance("Frame", {
+        Size = UDim2.new(1, 0, 0, 1),
+        Position = UDim2.new(0, 0, 1, -1),
+        BackgroundColor3 = self.Theme.Accent,
+        BorderSizePixel = 0
+    }, titleBar)
+    
+    local titleLineGrad = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Theme.Accent),
+            ColorSequenceKeypoint.new(1, self.Theme.AccentHover)
+        })
+    }, titleBarLine)
+    titleLineGrad.Name = "AccentGradient"
     
     local titleText = CreateInstance("TextLabel", {
         Size = UDim2.new(0.5, 0, 0.6, 0),
@@ -640,6 +816,15 @@ function Tab:CreateSection(name)
         LayoutOrder = #self.Page:GetChildren()
     }, self.Page)
     
+    -- Sleek vertical card gradient blending to background
+    local sectionGrad = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Window.Theme.Sidebar),
+            ColorSequenceKeypoint.new(1, self.Window.Theme.Background)
+        }),
+        Rotation = 90
+    }, sectionContainer)
+    
     CreateInstance("UICorner", { CornerRadius = UDim.new(0, 8) }, sectionContainer)
     CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 1 }, sectionContainer)
     
@@ -686,6 +871,7 @@ function Section:CreateButton(text, callback)
     local btnFrame = CreateInstance("Frame", {
         Size = UDim2.new(1, 0, 0, 36),
         BackgroundColor3 = self.Window.Theme.Element,
+        ClipsDescendants = true, -- Clips the shimmer sweep inside borders
         LayoutOrder = #self.Container:GetChildren()
     }, self.Container)
     
@@ -700,20 +886,41 @@ function Section:CreateButton(text, callback)
     }, btnFrame)
     btnGradient.Name = "BtnGrad"
     
+    -- Visual shimmer effect sweep
+    local shimmer = CreateInstance("Frame", {
+        Size = UDim2.new(0, 60, 2, 0),
+        Position = UDim2.new(-0.3, -60, -0.5, 0),
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        BackgroundTransparency = 0.9,
+        Rotation = 25,
+        BorderSizePixel = 0,
+        ZIndex = 2
+    }, btnFrame)
+    
+    local shimmerGrad = CreateInstance("UIGradient", {
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.5, 0),
+            NumberSequenceKeypoint.new(1, 1)
+        })
+    }, shimmer)
+    
     local textLabel = CreateInstance("TextLabel", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         Text = text,
         TextColor3 = self.Window.Theme.Text,
         Font = self.Window.Theme.Font,
-        TextSize = 13
+        TextSize = 13,
+        ZIndex = 3
     }, btnFrame)
     
     local button = CreateInstance("TextButton", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         Text = "",
-        AutoButtonColor = false
+        AutoButtonColor = false,
+        ZIndex = 4
     }, btnFrame)
     
     button.MouseEnter:Connect(function()
@@ -722,6 +929,9 @@ function Section:CreateButton(text, callback)
             ColorSequenceKeypoint.new(0, self.Window.Theme.Element),
             ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
         })
+        -- Trigger shimmer sweep
+        shimmer.Position = UDim2.new(-0.3, -60, -0.5, 0)
+        Tween(shimmer, 0.45, { Position = UDim2.new(1.3, 0, -0.5, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     end)
     
     button.MouseLeave:Connect(function()
