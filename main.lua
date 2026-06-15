@@ -218,6 +218,10 @@ function AerLib:SetAccentColor(newAccent, newHover)
                 desc.Color = newAccent
             elseif (desc:IsA("TextBox") or desc:IsA("TextLabel") or desc:IsA("TextButton")) and desc.Name == "AccentValue" then
                 desc.TextColor3 = newAccent
+            elseif desc:IsA("ImageLabel") and desc.Name == "AccentBackgroundOrb" then
+                Tween(desc, 0.25, { ImageColor3 = newAccent })
+            elseif desc:IsA("ImageLabel") and desc.Name == "AccentHoverBackgroundOrb" then
+                Tween(desc, 0.25, { ImageColor3 = self.Theme.AccentHover })
             end
         end
     end
@@ -467,7 +471,7 @@ function AerLib:CreateWindow(title, subtitle)
         ResetOnSpawn = false
     }, ParentGui)
     
-    local mainFrame = CreateInstance("Frame", {
+    local mainFrame = CreateInstance("CanvasGroup", {
         Size = UDim2.new(0, 630, 0, 430),
         Position = UDim2.new(0.5, -315, 0.5, -215),
         BackgroundColor3 = self.Theme.Background,
@@ -489,6 +493,51 @@ function AerLib:CreateWindow(title, subtitle)
         }),
         Rotation = 45
     }, mainStroke)
+
+    -- Ambient Neon Drift Orbs (rendered behind all content)
+    local backgroundCanvas = CreateInstance("Frame", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        ZIndex = 0
+    }, mainFrame)
+    
+    local orb1 = CreateInstance("ImageLabel", {
+        Name = "AccentBackgroundOrb",
+        Size = UDim2.new(0, 300, 0, 300),
+        Position = UDim2.new(-0.2, 0, -0.2, 0),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://2821217036",
+        ImageColor3 = self.Theme.Accent,
+        ImageTransparency = 0.94,
+        ZIndex = 0
+    }, backgroundCanvas)
+    
+    local orb2 = CreateInstance("ImageLabel", {
+        Name = "AccentHoverBackgroundOrb",
+        Size = UDim2.new(0, 250, 0, 250),
+        Position = UDim2.new(0.8, 0, 0.7, 0),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://2821217036",
+        ImageColor3 = self.Theme.AccentHover,
+        ImageTransparency = 0.95,
+        ZIndex = 0
+    }, backgroundCanvas)
+    
+    task.spawn(function()
+        local function Drift(orb, targetPos, targetSize)
+            Tween(orb, math.random(10, 18), {
+                Position = targetPos,
+                Size = targetSize
+            }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+        end
+        
+        while mainFrame.Parent do
+            Drift(orb1, UDim2.new(math.random(-50, 50)/100, 0, math.random(-50, 50)/100, 0), UDim2.new(0, math.random(200, 350), 0, math.random(200, 350)))
+            Drift(orb2, UDim2.new(math.random(50, 100)/100, 0, math.random(40, 90)/100, 0), UDim2.new(0, math.random(180, 280), 0, math.random(180, 280)))
+            task.wait(18)
+        end
+    end)
     
     -- Title Bar / Drag Bar
     local titleBar = CreateInstance("Frame", {
@@ -724,16 +773,48 @@ function AerLib:CreateWindow(title, subtitle)
         screenGui:Destroy()
     end)
     
+    -- Setup UIScale and initial GroupTransparency for premium transition
+    local uiScale = CreateInstance("UIScale", { Scale = 0.85 }, mainFrame)
+    mainFrame.GroupTransparency = 1
+    
+    Tween(uiScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    Tween(mainFrame, 0.35, { GroupTransparency = 0 })
+    
     -- Robust show/hide toggle ignoring processed keybinds when moving, but avoiding typing conflicts
     local connection
+    local isToggling = false
     connection = UserInputService.InputBegan:Connect(function(input, processed)
-        if input.KeyCode == self.ToggleKey and not UserInputService:GetFocusedTextBox() then
-            screenGui.Enabled = not screenGui.Enabled
+        if input.KeyCode == self.ToggleKey and not UserInputService:GetFocusedTextBox() and not isToggling then
+            isToggling = true
+            if screenGui.Enabled then
+                Tween(uiScale, 0.2, { Scale = 0.85 }, Enum.EasingStyle.Cubic, Enum.EasingDirection.In)
+                Tween(mainFrame, 0.2, { GroupTransparency = 1 })
+                task.wait(0.18)
+                screenGui.Enabled = false
+            else
+                screenGui.Enabled = true
+                uiScale.Scale = 0.85
+                mainFrame.GroupTransparency = 1
+                Tween(uiScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                Tween(mainFrame, 0.3, { GroupTransparency = 0 })
+                task.wait(0.3)
+            end
+            isToggling = false
         end
     end)
     
     screenGui.Destroying:Connect(function()
         connection:Disconnect()
+    end)
+    
+    closeBtn.MouseButton1Click:Connect(function()
+        if not isToggling then
+            isToggling = true
+            Tween(uiScale, 0.2, { Scale = 0.85 }, Enum.EasingStyle.Cubic, Enum.EasingDirection.In)
+            Tween(mainFrame, 0.2, { GroupTransparency = 1 })
+            task.wait(0.18)
+            screenGui:Destroy()
+        end
     end)
     
     MakeDraggable(titleBar, mainFrame)
@@ -757,15 +838,21 @@ local Tab = {}
 Tab.__index = Tab
 
 function Window:CreateTab(name, icon)
+    local pageGroup = CreateInstance("CanvasGroup", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        GroupTransparency = 1,
+        Visible = false
+    }, self.Container)
+    
     local page = CreateInstance("ScrollingFrame", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
-        Visible = false,
         ScrollBarThickness = 3,
         ScrollBarImageColor3 = self.Theme.ElementBorder,
         ScrollBarImageTransparency = 0.5, -- Soft minimalist design
         CanvasSize = UDim2.new(0, 0, 0, 0)
-    }, self.Container)
+    }, pageGroup)
     
     -- Smooth scrollbar transparency fades on hover
     page.MouseEnter:Connect(function()
@@ -896,7 +983,13 @@ end
 
 function Window:SelectTab(tabObj)
     if self.ActiveTab then
-        self.ActiveTab.Page.Visible = false
+        local oldGroup = self.ActiveTab.Page.Parent
+        Tween(oldGroup, 0.15, { GroupTransparency = 1 })
+        task.delay(0.15, function()
+            if self.ActiveTab ~= tabObj then
+                oldGroup.Visible = false
+            end
+        end)
         Tween(self.ActiveTab.Button, 0.2, { BackgroundColor3 = self.Theme.Sidebar })
         Tween(self.ActiveTab.TextLabel, 0.2, { TextColor3 = self.Theme.TextSecondary })
         if self.ActiveTab.IconLabel then
@@ -910,10 +1003,12 @@ function Window:SelectTab(tabObj)
     end
     
     self.ActiveTab = tabObj
-    tabObj.Page.Visible = true
+    local newGroup = tabObj.Page.Parent
+    newGroup.Visible = true
+    newGroup.GroupTransparency = 1
+    newGroup.Position = UDim2.new(0, 0, 0, 10)
     
-    tabObj.Page.Position = UDim2.new(0, 0, 0, 15)
-    Tween(tabObj.Page, 0.25, { Position = UDim2.new(0, 0, 0, 0) }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
+    Tween(newGroup, 0.25, { Position = UDim2.new(0, 0, 0, 0), GroupTransparency = 0 }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
     
     Tween(tabObj.Button, 0.2, { BackgroundColor3 = self.Theme.Element })
     Tween(tabObj.TextLabel, 0.2, { TextColor3 = self.Theme.Accent })
@@ -1166,9 +1261,11 @@ function Section:CreateToggle(text, default, callback)
     
     clickArea.MouseEnter:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+        Tween(toggleFrame, 0.15, { BackgroundColor3 = Color3.fromRGB(30, 30, 30) })
     end)
     clickArea.MouseLeave:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+        Tween(toggleFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Element })
     end)
     
     local function UpdateToggle(newState)
@@ -1276,9 +1373,11 @@ function Section:CreateSlider(text, min, max, default, decimals, callback)
     
     sliderFrame.MouseEnter:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+        Tween(sliderFrame, 0.15, { BackgroundColor3 = Color3.fromRGB(30, 30, 30) })
     end)
     sliderFrame.MouseLeave:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+        Tween(sliderFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Element })
     end)
     
     valueBox.Focused:Connect(function()
@@ -1413,9 +1512,11 @@ function Section:CreateDropdown(text, list, default, callback)
     
     dropdownFrame.MouseEnter:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+        Tween(dropdownFrame, 0.15, { BackgroundColor3 = Color3.fromRGB(30, 30, 30) })
     end)
     dropdownFrame.MouseLeave:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+        Tween(dropdownFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Element })
     end)
     
     local function ToggleDropdown(state)
@@ -1431,6 +1532,15 @@ function Section:CreateDropdown(text, list, default, callback)
         selected = val
         titleText.Text = text .. ": " .. tostring(selected)
         ToggleDropdown(false)
+        for _, opt in ipairs(options) do
+            if opt.Text == tostring(selected) then
+                opt.Name = "AccentValue"
+                opt.TextColor3 = self.Window.Theme.Accent
+            else
+                opt.Name = "Option"
+                opt.TextColor3 = self.Window.Theme.TextSecondary
+            end
+        end
         task.spawn(callback, selected)
     end
     
@@ -1452,6 +1562,12 @@ function Section:CreateDropdown(text, list, default, callback)
             }, listContainer)
             CreateInstance("UICorner", { CornerRadius = UDim.new(0, 4) }, itemBtn)
             CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 0.5 }, itemBtn)
+            
+            if item == selected then
+                itemBtn.Name = "AccentValue"
+            else
+                itemBtn.Name = "Option"
+            end
             
             itemBtn.MouseEnter:Connect(function()
                 Tween(itemBtn, 0.15, { BackgroundColor3 = self.Window.Theme.Element, TextColor3 = self.Window.Theme.Text })
@@ -1536,10 +1652,12 @@ function Section:CreateTextBox(text, placeholder, callback)
     
     textBoxFrame.MouseEnter:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+        Tween(textBoxFrame, 0.15, { BackgroundColor3 = Color3.fromRGB(30, 30, 30) })
     end)
     textBoxFrame.MouseLeave:Connect(function()
         if not inputBox:IsFocused() then
             Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+            Tween(textBoxFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Element })
         end
     end)
     
@@ -1549,6 +1667,8 @@ function Section:CreateTextBox(text, placeholder, callback)
     
     inputBox.FocusLost:Connect(function(enterPressed)
         Tween(inputBorder, 0.15, { Color = self.Window.Theme.ElementBorder })
+        Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+        Tween(textBoxFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Element })
         task.spawn(callback, inputBox.Text, enterPressed)
     end)
     
@@ -1565,6 +1685,13 @@ end
 function Section:CreateKeybind(text, defaultKey, callback)
     local bind = defaultKey or Enum.KeyCode.E
     local binding = false
+    
+    -- Auto-bind library toggle key on creation
+    if text:lower():find("toggle") or text:lower():find("open/close") then
+        if self.Window and self.Window.WindowLibrary then
+            self.Window.WindowLibrary.ToggleKey = bind
+        end
+    end
     
     local keybindFrame = CreateInstance("Frame", {
         Size = UDim2.new(1, 0, 0, 38),
@@ -1602,9 +1729,11 @@ function Section:CreateKeybind(text, defaultKey, callback)
     
     keybindFrame.MouseEnter:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+        Tween(keybindFrame, 0.15, { BackgroundColor3 = Color3.fromRGB(30, 30, 30) })
     end)
     keybindFrame.MouseLeave:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+        Tween(keybindFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Element })
     end)
     
     bindBox.MouseButton1Click:Connect(function()
@@ -1616,19 +1745,32 @@ function Section:CreateKeybind(text, defaultKey, callback)
     local inputConn
     inputConn = UserInputService.InputBegan:Connect(function(input, processed)
         if binding and not processed then
+            local newBind = nil
             if input.UserInputType == Enum.UserInputType.Keyboard then
-                bind = input.KeyCode
-                binding = false
-                bindBox.Text = bind.Name
-                Tween(bindBorder, 0.15, { Color = self.Window.Theme.ElementBorder })
+                newBind = input.KeyCode
             elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-                bind = nil
-                binding = false
-                bindBox.Text = "NONE"
-                Tween(bindBorder, 0.15, { Color = self.Window.Theme.ElementBorder })
+                newBind = nil
+            end
+            
+            bind = newBind
+            binding = false
+            bindBox.Text = bind and bind.Name or "NONE"
+            Tween(bindBorder, 0.15, { Color = self.Window.Theme.ElementBorder })
+            
+            -- Auto-bind library toggle key on update
+            if text:lower():find("toggle") or text:lower():find("open/close") then
+                if self.Window and self.Window.WindowLibrary then
+                    self.Window.WindowLibrary.ToggleKey = bind
+                end
+            end
+            
+            if callback then
+                task.spawn(callback, bind, true)
             end
         elseif not binding and not processed and bind and input.KeyCode == bind then
-            task.spawn(callback)
+            if callback then
+                task.spawn(callback, bind, false)
+            end
         end
     end)
     
@@ -1640,6 +1782,11 @@ function Section:CreateKeybind(text, defaultKey, callback)
         SetKey = function(key)
             bind = key
             bindBox.Text = bind and bind.Name or "NONE"
+            if text:lower():find("toggle") or text:lower():find("open/close") then
+                if self.Window and self.Window.WindowLibrary then
+                    self.Window.WindowLibrary.ToggleKey = bind
+                end
+            end
         end,
         GetKey = function() return bind end
     }
@@ -1688,9 +1835,11 @@ function Section:CreateColorPicker(text, defaultColor, callback)
     
     pickerFrame.MouseEnter:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+        Tween(pickerFrame, 0.15, { BackgroundColor3 = Color3.fromRGB(30, 30, 30) })
     end)
     pickerFrame.MouseLeave:Connect(function()
         Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+        Tween(pickerFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Element })
     end)
     
     -- Sub-container holding the 2D picker items
