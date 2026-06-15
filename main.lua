@@ -69,7 +69,9 @@ local FallbackIcons = {
     unlock = "rbxassetid://10747366027",
     key = "rbxassetid://10723416652",
     ["alert-triangle"] = "rbxassetid://10709753149",
-    ["alert-circle"] = "rbxassetid://10709752996"
+    ["alert-circle"] = "rbxassetid://10709752996",
+    minus = "rbxassetid://10734916301",
+    plus = "rbxassetid://10709819149"
 }
 setmetatable(LucideIcons, { __index = FallbackIcons })
 
@@ -281,12 +283,13 @@ function AerLib:Toast(title, message, duration, type)
         LayoutOrder = #self.ToastList:GetChildren()
     }, self.ToastList)
     
-    local toastFrame = CreateInstance("Frame", {
+    -- Changed to CanvasGroup to support pixel-perfect rounding of descendants
+    local toastFrame = CreateInstance("CanvasGroup", {
         Name = "ToastFrame",
         Size = UDim2.new(1, 0, 1, 0),
         Position = UDim2.new(1, 50, 0, 0), -- Slide in from right
         BackgroundColor3 = self.Theme.Background,
-        BackgroundTransparency = 0.08,
+        GroupTransparency = 1, -- Start faded out for clean entry
         ClipsDescendants = true
     }, toastContainer)
     
@@ -376,19 +379,24 @@ function AerLib:Toast(title, message, duration, type)
         TextYAlignment = Enum.TextYAlignment.Top
     }, contentFrame)
     
-    -- Close button
+    -- Close button using Lucide close icon
     local closeBtn = CreateInstance("TextButton", {
-        Size = UDim2.new(0, 16, 0, 16),
-        Position = UDim2.new(1, -22, 0, 6),
+        Size = UDim2.new(0, 20, 0, 20),
+        Position = UDim2.new(1, -24, 0, 6),
         BackgroundTransparency = 1,
-        Text = "×",
-        TextColor3 = self.Theme.TextSecondary,
-        Font = self.Theme.FontBold,
-        TextSize = 14,
+        Text = "",
         ZIndex = 10
     }, toastFrame)
     
-    -- Thin draining progress bar
+    local closeIcon = CreateInstance("ImageLabel", {
+        Size = UDim2.new(0, 12, 0, 12),
+        Position = UDim2.new(0.5, -6, 0.5, -6),
+        BackgroundTransparency = 1,
+        Image = LucideIcons["close"],
+        ImageColor3 = self.Theme.TextSecondary
+    }, closeBtn)
+    
+    -- Thin draining progress bar (Respects rounded corners now inside CanvasGroup!)
     local progressBar = CreateInstance("Frame", {
         Size = UDim2.new(1, 0, 0, 2),
         Position = UDim2.new(0, 0, 1, -2),
@@ -405,9 +413,9 @@ function AerLib:Toast(title, message, duration, type)
     }, progressBar)
     progressGrad.Name = type == "info" and "AccentGradient" or "ProgressGrad"
     
-    -- Entrances
+    -- Entrances (Fading group transparency alongside position/size)
     Tween(toastContainer, 0.35, { Size = UDim2.new(1, 0, 0, 64) }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
-    Tween(toastFrame, 0.35, { Position = UDim2.new(0, 0, 0, 0) }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
+    Tween(toastFrame, 0.35, { Position = UDim2.new(0, 0, 0, 0), GroupTransparency = 0 }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
     
     local progressTween = TweenService:Create(progressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
         Size = UDim2.new(0, 0, 0, 2)
@@ -419,7 +427,7 @@ function AerLib:Toast(title, message, duration, type)
         isDestroyed = true
         progressTween:Cancel()
         
-        Tween(toastFrame, 0.3, { Position = UDim2.new(1, 50, 0, 0), BackgroundTransparency = 1 })
+        Tween(toastFrame, 0.3, { Position = UDim2.new(1, 50, 0, 0), GroupTransparency = 1 })
         Tween(toastContainer, 0.3, { Size = UDim2.new(1, 0, 0, 0) })
         task.wait(0.3)
         toastContainer:Destroy()
@@ -429,12 +437,14 @@ function AerLib:Toast(title, message, duration, type)
         progressTween:Pause()
         Tween(border, 0.15, { Color = toastColor })
         Tween(iconBg, 0.15, { BackgroundTransparency = 0.82 })
+        Tween(closeIcon, 0.15, { ImageColor3 = self.Theme.Text })
     end)
     
     local mouseConnLeave = toastFrame.MouseLeave:Connect(function()
         progressTween:Play()
         Tween(border, 0.15, { Color = self.Theme.ElementBorder })
         Tween(iconBg, 0.15, { BackgroundTransparency = 0.92 })
+        Tween(closeIcon, 0.15, { ImageColor3 = self.Theme.TextSecondary })
     end)
     
     closeBtn.MouseButton1Click:Connect(Dismiss)
@@ -478,6 +488,17 @@ function AerLib:CreateWindow(title, subtitle)
         BorderSizePixel = 0
     }, mainFrame)
     
+    -- Round only the top corners of the titleBar
+    CreateInstance("UICorner", { CornerRadius = UDim.new(0, 8) }, titleBar)
+    -- Bottom corner cover patch to keep bottom of title bar square
+    local titleBarPatch = CreateInstance("Frame", {
+        Size = UDim2.new(1, 0, 0, 12),
+        Position = UDim2.new(0, 0, 1, -12),
+        BackgroundColor3 = self.Theme.Sidebar,
+        BorderSizePixel = 0,
+        ZIndex = 1
+    }, titleBar)
+    
     -- Sleek Header Gradient (dark grey vertical transition)
     local headerGradient = CreateInstance("UIGradient", {
         Color = ColorSequence.new({
@@ -492,7 +513,8 @@ function AerLib:CreateWindow(title, subtitle)
         Size = UDim2.new(1, 0, 0, 1),
         Position = UDim2.new(0, 0, 1, -1),
         BackgroundColor3 = self.Theme.Accent,
-        BorderSizePixel = 0
+        BorderSizePixel = 0,
+        ZIndex = 2
     }, titleBar)
     
     local titleLineGrad = CreateInstance("UIGradient", {
@@ -511,7 +533,8 @@ function AerLib:CreateWindow(title, subtitle)
         TextColor3 = self.Theme.Text,
         Font = self.Theme.FontBold,
         TextSize = 18,
-        TextXAlignment = Enum.TextXAlignment.Left
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 2
     }, titleBar)
     
     if subtitle then
@@ -526,15 +549,17 @@ function AerLib:CreateWindow(title, subtitle)
             TextColor3 = self.Theme.TextSecondary,
             Font = self.Theme.Font,
             TextSize = 11,
-            TextXAlignment = Enum.TextXAlignment.Left
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 2
         }, titleBar)
     end
     
-    -- Close and Minimize buttons
+    -- Close and Minimize buttons Container
     local buttonContainer = CreateInstance("Frame", {
         Size = UDim2.new(0, 80, 1, 0),
         Position = UDim2.new(1, -90, 0, 0),
-        BackgroundTransparency = 1
+        BackgroundTransparency = 1,
+        ZIndex = 2
     }, titleBar)
     
     local listLayout = CreateInstance("UIListLayout", {
@@ -544,29 +569,58 @@ function AerLib:CreateWindow(title, subtitle)
         Padding = UDim.new(0, 8)
     }, buttonContainer)
     
+    -- Minimize Button using Lucide 'minus' icon
     local minBtn = CreateInstance("TextButton", {
         Size = UDim2.new(0, 24, 0, 24),
         BackgroundColor3 = self.Theme.Element,
-        Text = "-",
-        TextColor3 = self.Theme.TextSecondary,
-        Font = self.Theme.FontBold,
-        TextSize = 14,
+        Text = "",
         AutoButtonColor = false
     }, buttonContainer)
     CreateInstance("UICorner", { CornerRadius = UDim.new(0, 6) }, minBtn)
-    CreateInstance("UIStroke", { Color = self.Theme.ElementBorder, Thickness = 1 }, minBtn)
+    local minBtnBorder = CreateInstance("UIStroke", { Color = self.Theme.ElementBorder, Thickness = 1 }, minBtn)
+    local minIcon = CreateInstance("ImageLabel", {
+        Size = UDim2.new(0, 12, 0, 12),
+        Position = UDim2.new(0.5, -6, 0.5, -6),
+        BackgroundTransparency = 1,
+        Image = LucideIcons["minus"],
+        ImageColor3 = self.Theme.TextSecondary
+    }, minBtn)
     
+    -- Close Button using Lucide 'close' icon
     local closeBtn = CreateInstance("TextButton", {
         Size = UDim2.new(0, 24, 0, 24),
         BackgroundColor3 = self.Theme.Element,
-        Text = "×",
-        TextColor3 = self.Theme.TextSecondary,
-        Font = self.Theme.FontBold,
-        TextSize = 16,
+        Text = "",
         AutoButtonColor = false
     }, buttonContainer)
     CreateInstance("UICorner", { CornerRadius = UDim.new(0, 6) }, closeBtn)
-    CreateInstance("UIStroke", { Color = self.Theme.ElementBorder, Thickness = 1 }, closeBtn)
+    local closeBtnBorder = CreateInstance("UIStroke", { Color = self.Theme.ElementBorder, Thickness = 1 }, closeBtn)
+    local closeIcon = CreateInstance("ImageLabel", {
+        Size = UDim2.new(0, 12, 0, 12),
+        Position = UDim2.new(0.5, -6, 0.5, -6),
+        BackgroundTransparency = 1,
+        Image = LucideIcons["close"],
+        ImageColor3 = self.Theme.TextSecondary
+    }, closeBtn)
+    
+    -- Window Buttons Hover Effects
+    minBtn.MouseEnter:Connect(function()
+        Tween(minBtnBorder, 0.15, { Color = self.Theme.Accent })
+        Tween(minIcon, 0.15, { ImageColor3 = self.Theme.Accent })
+    end)
+    minBtn.MouseLeave:Connect(function()
+        Tween(minBtnBorder, 0.15, { Color = self.Theme.ElementBorder })
+        Tween(minIcon, 0.15, { ImageColor3 = self.Theme.TextSecondary })
+    end)
+    
+    closeBtn.MouseEnter:Connect(function()
+        Tween(closeBtnBorder, 0.15, { Color = self.Theme.Danger })
+        Tween(closeIcon, 0.15, { ImageColor3 = self.Theme.Danger })
+    end)
+    closeBtn.MouseLeave:Connect(function()
+        Tween(closeBtnBorder, 0.15, { Color = self.Theme.ElementBorder })
+        Tween(closeIcon, 0.15, { ImageColor3 = self.Theme.TextSecondary })
+    end)
     
     -- Sidebar (Tabs)
     local sidebar = CreateInstance("Frame", {
@@ -576,13 +630,31 @@ function AerLib:CreateWindow(title, subtitle)
         BorderSizePixel = 0
     }, mainFrame)
     
+    -- Round only the bottom-left corner of the sidebar to match the Window Frame corner
+    CreateInstance("UICorner", { CornerRadius = UDim.new(0, 8) }, sidebar)
+    
+    -- Sidebar corner cover patches to keep top-left, top-right, and bottom-right corners square
+    local sidebarPatch = CreateInstance("Frame", {
+        Size = UDim2.new(1, 0, 1, -8),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = self.Theme.Sidebar,
+        BorderSizePixel = 0
+    }, sidebar)
+    local sidebarPatchRight = CreateInstance("Frame", {
+        Size = UDim2.new(0, 8, 1, 0),
+        Position = UDim2.new(1, -8, 0, 0),
+        BackgroundColor3 = self.Theme.Sidebar,
+        BorderSizePixel = 0
+    }, sidebar)
+    
     local sidebarScroll = CreateInstance("ScrollingFrame", {
         Size = UDim2.new(1, 0, 1, -20),
         Position = UDim2.new(0, 0, 0, 10),
         BackgroundTransparency = 1,
         ScrollBarThickness = 2,
         ScrollBarImageColor3 = self.Theme.ElementBorder,
-        CanvasSize = UDim2.new(0, 0, 0, 0)
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        ZIndex = 2
     }, sidebar)
     
     local tabLayout = CreateInstance("UIListLayout", {
@@ -597,7 +669,7 @@ function AerLib:CreateWindow(title, subtitle)
         BackgroundTransparency = 1
     }, mainFrame)
     
-    -- Toggle visibility handling
+    -- Toggle visibility handling (minimization)
     local isMinimized = false
     minBtn.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
@@ -605,14 +677,14 @@ function AerLib:CreateWindow(title, subtitle)
             Tween(mainFrame, 0.3, { Size = UDim2.new(0, 630, 0, 48) })
             sidebar.Visible = false
             container.Visible = false
-            minBtn.Text = "+"
+            minIcon.Image = LucideIcons["plus"]
         else
             Tween(mainFrame, 0.3, { Size = UDim2.new(0, 630, 0, 430) })
             task.delay(0.1, function()
                 sidebar.Visible = true
                 container.Visible = true
             end)
-            minBtn.Text = "-"
+            minIcon.Image = LucideIcons["minus"]
         end
     end)
     
@@ -620,9 +692,10 @@ function AerLib:CreateWindow(title, subtitle)
         screenGui:Destroy()
     end)
     
+    -- Robust show/hide toggle ignoring processed keybinds when moving, but avoiding typing conflicts
     local connection
     connection = UserInputService.InputBegan:Connect(function(input, processed)
-        if not processed and input.KeyCode == self.ToggleKey then
+        if input.KeyCode == self.ToggleKey and not UserInputService:GetFocusedTextBox() then
             self.Toggled = not self.Toggled
             screenGui.Enabled = self.Toggled
         end
