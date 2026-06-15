@@ -983,10 +983,11 @@ end
 
 function Window:SelectTab(tabObj)
     if self.ActiveTab then
-        local oldGroup = self.ActiveTab.Page.Parent
+        local oldTab = self.ActiveTab
+        local oldGroup = oldTab.Page.Parent
         Tween(oldGroup, 0.15, { GroupTransparency = 1 })
         task.delay(0.15, function()
-            if self.ActiveTab ~= tabObj then
+            if self.ActiveTab ~= oldTab then
                 oldGroup.Visible = false
             end
         end)
@@ -2159,4 +2160,3 @@ function Section:CreateParagraph(title, content)
 end
 
 return AerLib
-
