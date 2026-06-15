@@ -203,7 +203,7 @@ function AerLib:SetAccentColor(newAccent, newHover)
     
     for _, win in ipairs(self.Windows) do
         if win.ActiveTab then
-            Tween(win.ActiveTab.Button, 0.2, { TextColor3 = newAccent })
+            Tween(win.ActiveTab.TextLabel, 0.2, { TextColor3 = newAccent })
             if win.ActiveTab.IconLabel then
                 Tween(win.ActiveTab.IconLabel, 0.2, { ImageColor3 = newAccent })
             end
@@ -216,9 +216,7 @@ function AerLib:SetAccentColor(newAccent, newHover)
                 })
             elseif desc:IsA("UIStroke") and desc.Name == "AccentGlow" then
                 desc.Color = newAccent
-            elseif desc:IsA("TextBox") and desc.Name == "AccentValue" then
-                desc.TextColor3 = newAccent
-            elseif desc:IsA("TextLabel") and desc.Name == "AccentValue" then
+            elseif (desc:IsA("TextBox") or desc:IsA("TextLabel") or desc:IsA("TextButton")) and desc.Name == "AccentValue" then
                 desc.TextColor3 = newAccent
             end
         end
@@ -707,9 +705,13 @@ function AerLib:CreateWindow(title, subtitle)
             Tween(mainFrame, 0.3, { Size = UDim2.new(0, 630, 0, 48) })
             sidebar.Visible = false
             container.Visible = false
+            titleBarPatch.Visible = false -- Reveal rounded bottom corners when minimized
+            titleBarLine.Visible = false  -- Hide glowing separator line when minimized
             minIcon.Image = LucideIcons["plus"]
         else
             Tween(mainFrame, 0.3, { Size = UDim2.new(0, 630, 0, 430) })
+            titleBarPatch.Visible = true  -- Restore square corners for layout transition
+            titleBarLine.Visible = true   -- Restore glowing separator line
             task.delay(0.1, function()
                 sidebar.Visible = true
                 container.Visible = true
@@ -1011,7 +1013,7 @@ end
 
 -- Button
 function Section:CreateButton(text, callback)
-    local btnFrame = CreateInstance("Frame", {
+    local btnFrame = CreateInstance("CanvasGroup", {
         Size = UDim2.new(1, 0, 0, 36),
         BackgroundColor3 = self.Window.Theme.Element,
         ClipsDescendants = true, -- Clips the shimmer sweep inside borders
