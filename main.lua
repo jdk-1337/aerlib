@@ -39,7 +39,8 @@ local FallbackIcons = {
     trash = "rbxassetid://10747362393",
     bell = "rbxassetid://10709775704",
     check = "rbxassetid://10709790644",
-    close = "rbxassetid://10734951535",
+    close = "rbxassetid://10747384394", -- Clean Lucide X close icon
+    x = "rbxassetid://10747384394", -- Clean Lucide X close icon
     crosshair = "rbxassetid://10709818534",
     sword = "rbxassetid://10734975486",
     swords = "rbxassetid://10734975692",
@@ -70,8 +71,8 @@ local FallbackIcons = {
     key = "rbxassetid://10723416652",
     ["alert-triangle"] = "rbxassetid://10709753149",
     ["alert-circle"] = "rbxassetid://10709752996",
-    minus = "rbxassetid://10734916301",
-    plus = "rbxassetid://10709819149"
+    minus = "rbxassetid://10734896206", -- Correct Lucide Minus icon
+    plus = "rbxassetid://10734924532" -- Correct Lucide Plus icon
 }
 setmetatable(LucideIcons, { __index = FallbackIcons })
 
@@ -481,6 +482,16 @@ function AerLib:CreateWindow(title, subtitle)
         Thickness = 1
     }, mainFrame)
     
+    -- Subtle gradient along window border for extra depth
+    local mainStrokeGrad = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Theme.ElementBorder),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(30, 30, 30)),
+            ColorSequenceKeypoint.new(1, self.Theme.ElementBorder)
+        }),
+        Rotation = 45
+    }, mainStroke)
+    
     -- Title Bar / Drag Bar
     local titleBar = CreateInstance("Frame", {
         Size = UDim2.new(1, 0, 0, 48),
@@ -497,6 +508,16 @@ function AerLib:CreateWindow(title, subtitle)
         BackgroundColor3 = self.Theme.Sidebar,
         BorderSizePixel = 0,
         ZIndex = 1
+    }, titleBar)
+    
+    -- Premium Glass Top Edge Highlight reflection
+    local topHighlight = CreateInstance("Frame", {
+        Size = UDim2.new(1, 0, 0, 1),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.88,
+        BorderSizePixel = 0,
+        ZIndex = 3
     }, titleBar)
     
     -- Sleek Header Gradient (dark grey vertical transition)
@@ -653,9 +674,18 @@ function AerLib:CreateWindow(title, subtitle)
         BackgroundTransparency = 1,
         ScrollBarThickness = 2,
         ScrollBarImageColor3 = self.Theme.ElementBorder,
+        ScrollBarImageTransparency = 0.5, -- Minimal scrollbar by default
         CanvasSize = UDim2.new(0, 0, 0, 0),
         ZIndex = 2
     }, sidebar)
+    
+    -- Smooth scrollbar transparency fades on hover
+    sidebarScroll.MouseEnter:Connect(function()
+        Tween(sidebarScroll, 0.2, { ScrollBarImageTransparency = 0.1 })
+    end)
+    sidebarScroll.MouseLeave:Connect(function()
+        Tween(sidebarScroll, 0.2, { ScrollBarImageTransparency = 0.5 })
+    end)
     
     local tabLayout = CreateInstance("UIListLayout", {
         Padding = UDim.new(0, 6),
@@ -730,10 +760,19 @@ function Window:CreateTab(name, icon)
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         Visible = false,
-        ScrollBarThickness = 4,
+        ScrollBarThickness = 3,
         ScrollBarImageColor3 = self.Theme.ElementBorder,
+        ScrollBarImageTransparency = 0.5, -- Soft minimalist design
         CanvasSize = UDim2.new(0, 0, 0, 0)
     }, self.Container)
+    
+    -- Smooth scrollbar transparency fades on hover
+    page.MouseEnter:Connect(function()
+        Tween(page, 0.2, { ScrollBarImageTransparency = 0.1 })
+    end)
+    page.MouseLeave:Connect(function()
+        Tween(page, 0.2, { ScrollBarImageTransparency = 0.5 })
+    end)
     
     local layout = CreateInstance("UIListLayout", {
         Padding = UDim.new(0, 10),
@@ -783,7 +822,7 @@ function Window:CreateTab(name, icon)
         SortOrder = Enum.SortOrder.LayoutOrder
     }, tabBtn)
     
-    CreateInstance("UIPadding", {
+    local tabPadding = CreateInstance("UIPadding", {
         PaddingLeft = UDim.new(0, 10),
         PaddingRight = UDim.new(0, 10)
     }, tabBtn)
@@ -823,6 +862,7 @@ function Window:CreateTab(name, icon)
     
     tabBtn.MouseEnter:Connect(function()
         if self.ActiveTab ~= tabObj then
+            Tween(tabPadding, 0.15, { PaddingLeft = UDim.new(0, 14) })
             Tween(tabLabel, 0.15, { TextColor3 = self.Theme.Text })
             if tabIconLabel then
                 Tween(tabIconLabel, 0.15, { ImageColor3 = self.Theme.Text })
@@ -832,6 +872,7 @@ function Window:CreateTab(name, icon)
     
     tabBtn.MouseLeave:Connect(function()
         if self.ActiveTab ~= tabObj then
+            Tween(tabPadding, 0.15, { PaddingLeft = UDim.new(0, 10) })
             Tween(tabLabel, 0.15, { TextColor3 = self.Theme.TextSecondary })
             if tabIconLabel then
                 Tween(tabIconLabel, 0.15, { ImageColor3 = self.Theme.TextSecondary })
@@ -860,6 +901,10 @@ function Window:SelectTab(tabObj)
         if self.ActiveTab.IconLabel then
             Tween(self.ActiveTab.IconLabel, 0.2, { ImageColor3 = self.Theme.TextSecondary })
         end
+        local oldPadding = self.ActiveTab.Button:FindFirstChildOfClass("UIPadding")
+        if oldPadding then
+            Tween(oldPadding, 0.2, { PaddingLeft = UDim.new(0, 10) })
+        end
         Tween(self.ActiveTab.ButtonStroke, 0.2, { Transparency = 1 })
     end
     
@@ -873,6 +918,10 @@ function Window:SelectTab(tabObj)
     Tween(tabObj.TextLabel, 0.2, { TextColor3 = self.Theme.Accent })
     if tabObj.IconLabel then
         Tween(tabObj.IconLabel, 0.2, { ImageColor3 = self.Theme.Accent })
+    end
+    local newPadding = tabObj.Button:FindFirstChildOfClass("UIPadding")
+    if newPadding then
+        Tween(newPadding, 0.2, { PaddingLeft = UDim.new(0, 14) })
     end
     Tween(tabObj.ButtonStroke, 0.2, { Color = self.Theme.ElementBorder, Transparency = 0 })
 end
@@ -889,13 +938,13 @@ function Tab:CreateSection(name)
         LayoutOrder = #self.Page:GetChildren()
     }, self.Page)
     
-    -- Sleek vertical card gradient blending to background
+    -- Sleek vertical card gradient blending to background (angled rotation for premium aesthetics)
     local sectionGrad = CreateInstance("UIGradient", {
         Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, self.Window.Theme.Sidebar),
             ColorSequenceKeypoint.new(1, self.Window.Theme.Background)
         }),
-        Rotation = 90
+        Rotation = 135
     }, sectionContainer)
     
     CreateInstance("UICorner", { CornerRadius = UDim.new(0, 8) }, sectionContainer)
@@ -914,16 +963,38 @@ function Tab:CreateSection(name)
         PaddingRight = UDim.new(0, 10)
     }, sectionContainer)
     
-    local headerText = CreateInstance("TextLabel", {
+    -- Premium Section Header container with colored left anchor bar
+    local headerFrame = CreateInstance("Frame", {
         Size = UDim2.new(1, 0, 0, 20),
+        BackgroundTransparency = 1,
+        LayoutOrder = 0
+    }, sectionContainer)
+    
+    local accentBar = CreateInstance("Frame", {
+        Size = UDim2.new(0, 3, 0, 12),
+        Position = UDim2.new(0, 0, 0.5, -6),
+        BackgroundColor3 = self.Window.Theme.Accent,
+        BorderSizePixel = 0
+    }, headerFrame)
+    CreateInstance("UICorner", { CornerRadius = UDim.new(1, 0) }, accentBar)
+    local accentBarGrad = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Window.Theme.Accent),
+            ColorSequenceKeypoint.new(1, self.Window.Theme.AccentHover)
+        })
+    }, accentBar)
+    accentBarGrad.Name = "AccentGradient"
+    
+    local headerText = CreateInstance("TextLabel", {
+        Size = UDim2.new(1, -10, 1, 0),
+        Position = UDim2.new(0, 8, 0, 0),
         BackgroundTransparency = 1,
         Text = name:upper(),
         TextColor3 = self.Window.Theme.Accent,
         Font = self.Window.Theme.FontBold,
         TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        LayoutOrder = 0
-    }, sectionContainer)
+        TextXAlignment = Enum.TextXAlignment.Left
+    }, headerFrame)
     headerText.Name = "AccentValue"
     
     sectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
