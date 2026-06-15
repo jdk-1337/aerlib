@@ -20,10 +20,10 @@ end
 
 local AerLib = {
     Theme = {
-        Background = Color3.fromRGB(15, 17, 23),
-        Sidebar = Color3.fromRGB(22, 24, 33),
-        Element = Color3.fromRGB(30, 32, 44),
-        ElementBorder = Color3.fromRGB(42, 45, 62),
+        Background = Color3.fromRGB(13, 14, 20),
+        Sidebar = Color3.fromRGB(18, 20, 29),
+        Element = Color3.fromRGB(24, 27, 38),
+        ElementBorder = Color3.fromRGB(38, 41, 56),
         Accent = Color3.fromRGB(99, 102, 241), -- Sleek Indigo
         AccentHover = Color3.fromRGB(129, 140, 248),
         Text = Color3.fromRGB(243, 244, 246),
@@ -64,6 +64,13 @@ local function Tween(object, duration, properties, easingStyle, easingDirection)
     return tween
 end
 
+local function ColorToHex(color)
+    local r = math.round(color.R * 255)
+    local g = math.round(color.G * 255)
+    local b = math.round(color.B * 255)
+    return string.format("#%02X%02X%02X", r, g, b)
+end
+
 local function MakeDraggable(dragFrame, targetFrame)
     local dragging, dragInput, dragStart, startPos
     
@@ -100,6 +107,30 @@ local function MakeDraggable(dragFrame, targetFrame)
             })
         end
     end)
+end
+
+-- Global theme manager to update accents dynamically across all windows and custom UIGradients
+function AerLib:SetAccentColor(newAccent, newHover)
+    self.Theme.Accent = newAccent
+    self.Theme.AccentHover = newHover or newAccent
+    
+    for _, win in ipairs(self.Windows) do
+        if win.ActiveTab then
+            Tween(win.ActiveTab.Button, 0.2, { TextColor3 = newAccent })
+        end
+        for _, desc in ipairs(win.MainFrame:GetDescendants()) do
+            if desc:IsA("UIGradient") and desc.Name == "AccentGradient" then
+                desc.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, newAccent),
+                    ColorSequenceKeypoint.new(1, self.Theme.AccentHover)
+                })
+            elseif desc:IsA("UIStroke") and desc.Name == "AccentGlow" then
+                desc.Color = newAccent
+            elseif desc:IsA("TextLabel") and desc.Name == "AccentValue" then
+                desc.TextColor3 = newAccent
+            end
+        end
+    end
 end
 
 -- Toast Notification Manager
@@ -209,8 +240,8 @@ function AerLib:CreateWindow(title, subtitle)
     }, ParentGui)
     
     local mainFrame = CreateInstance("Frame", {
-        Size = UDim2.new(0, 620, 0, 420),
-        Position = UDim2.new(0.5, -310, 0.5, -210),
+        Size = UDim2.new(0, 630, 0, 430),
+        Position = UDim2.new(0.5, -315, 0.5, -215),
         BackgroundColor3 = self.Theme.Background,
         ClipsDescendants = true
     }, screenGui)
@@ -223,10 +254,19 @@ function AerLib:CreateWindow(title, subtitle)
     
     -- Title Bar / Drag Bar
     local titleBar = CreateInstance("Frame", {
-        Size = UDim2.new(1, 0, 0, 45),
+        Size = UDim2.new(1, 0, 0, 48),
         BackgroundColor3 = self.Theme.Sidebar,
         BorderSizePixel = 0
     }, mainFrame)
+    
+    -- Sleek Header Gradient
+    local headerGradient = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 33, 46)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 20, 29))
+        }),
+        Rotation = 0
+    }, titleBar)
     
     local titleText = CreateInstance("TextLabel", {
         Size = UDim2.new(0.5, 0, 0.6, 0),
@@ -295,8 +335,8 @@ function AerLib:CreateWindow(title, subtitle)
     
     -- Sidebar (Tabs)
     local sidebar = CreateInstance("Frame", {
-        Size = UDim2.new(0, 150, 1, -45),
-        Position = UDim2.new(0, 0, 0, 45),
+        Size = UDim2.new(0, 150, 1, -48),
+        Position = UDim2.new(0, 0, 0, 48),
         BackgroundColor3 = self.Theme.Sidebar,
         BorderSizePixel = 0
     }, mainFrame)
@@ -317,8 +357,8 @@ function AerLib:CreateWindow(title, subtitle)
     
     -- Content Container
     local container = CreateInstance("Frame", {
-        Size = UDim2.new(1, -150, 1, -45),
-        Position = UDim2.new(0, 150, 0, 45),
+        Size = UDim2.new(1, -150, 1, -48),
+        Position = UDim2.new(0, 150, 0, 48),
         BackgroundTransparency = 1
     }, mainFrame)
     
@@ -327,12 +367,12 @@ function AerLib:CreateWindow(title, subtitle)
     minBtn.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
         if isMinimized then
-            Tween(mainFrame, 0.3, { Size = UDim2.new(0, 620, 0, 45) })
+            Tween(mainFrame, 0.3, { Size = UDim2.new(0, 630, 0, 48) })
             sidebar.Visible = false
             container.Visible = false
             minBtn.Text = "+"
         else
-            Tween(mainFrame, 0.3, { Size = UDim2.new(0, 620, 0, 420) })
+            Tween(mainFrame, 0.3, { Size = UDim2.new(0, 630, 0, 430) })
             task.delay(0.1, function()
                 sidebar.Visible = true
                 container.Visible = true
@@ -467,6 +507,11 @@ function Window:SelectTab(tabObj)
     
     self.ActiveTab = tabObj
     tabObj.Page.Visible = true
+    
+    -- Premium slide-up animation effect on tab switch
+    tabObj.Page.Position = UDim2.new(0, 0, 0, 15)
+    Tween(tabObj.Page, 0.25, { Position = UDim2.new(0, 0, 0, 0) }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
+    
     Tween(tabObj.Button, 0.2, { BackgroundColor3 = self.Theme.Element, TextColor3 = self.Theme.Accent })
     Tween(tabObj.ButtonStroke, 0.2, { Color = self.Theme.ElementBorder, Transparency = 0 })
 end
@@ -509,6 +554,7 @@ function Tab:CreateSection(name)
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = 0
     }, sectionContainer)
+    headerText.Name = "AccentValue"
     
     sectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         sectionContainer.Size = UDim2.new(0.92, 0, 0, sectionLayout.AbsoluteContentSize.Y + 20)
@@ -534,6 +580,15 @@ function Section:CreateButton(text, callback)
     CreateInstance("UICorner", { CornerRadius = UDim.new(0, 6) }, btnFrame)
     local border = CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 1 }, btnFrame)
     
+    -- Custom UIGradient for active/hover states
+    local btnGradient = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Window.Theme.Element),
+            ColorSequenceKeypoint.new(1, self.Window.Theme.Element)
+        })
+    }, btnFrame)
+    btnGradient.Name = "BtnGrad"
+    
     local textLabel = CreateInstance("TextLabel", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
@@ -550,15 +605,21 @@ function Section:CreateButton(text, callback)
         AutoButtonColor = false
     }, btnFrame)
     
-    -- Visual Feedback
+    -- Hover effect: border glows accent color and background applies smooth gradient
     button.MouseEnter:Connect(function()
-        Tween(btnFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Accent })
-        Tween(border, 0.15, { Color = self.Window.Theme.AccentHover })
+        Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+        btnGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Window.Theme.Element),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 39, 54))
+        })
     end)
     
     button.MouseLeave:Connect(function()
-        Tween(btnFrame, 0.15, { BackgroundColor3 = self.Window.Theme.Element })
         Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+        btnGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Window.Theme.Element),
+            ColorSequenceKeypoint.new(1, self.Window.Theme.Element)
+        })
     end)
     
     button.InputBegan:Connect(function(input)
@@ -608,7 +669,7 @@ function Section:CreateToggle(text, default, callback)
         TextXAlignment = Enum.TextXAlignment.Left
     }, toggleFrame)
     
-    -- Slider Switch Track
+    -- Switch Track
     local track = CreateInstance("Frame", {
         Size = UDim2.new(0, 38, 0, 20),
         Position = UDim2.new(1, -48, 0.5, -10),
@@ -617,7 +678,16 @@ function Section:CreateToggle(text, default, callback)
     CreateInstance("UICorner", { CornerRadius = UDim.new(1, 0) }, track)
     local trackBorder = CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 1 }, track)
     
-    -- Slider Knob
+    local trackGradient = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Window.Theme.Accent),
+            ColorSequenceKeypoint.new(1, self.Window.Theme.AccentHover)
+        }),
+        Enabled = state
+    }, track)
+    trackGradient.Name = "AccentGradient"
+    
+    -- Knob
     local knob = CreateInstance("Frame", {
         Size = UDim2.new(0, 14, 0, 14),
         Position = UDim2.new(state and 0.55 or 0.08, 0, 0.5, -7),
@@ -631,12 +701,21 @@ function Section:CreateToggle(text, default, callback)
         Text = ""
     }, toggleFrame)
     
+    -- Glow effect on hover
+    clickArea.MouseEnter:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+    end)
+    clickArea.MouseLeave:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+    end)
+    
     local function UpdateToggle(newState)
         state = newState
         local targetKnobPos = state and 0.55 or 0.08
         local targetTrackColor = state and self.Window.Theme.Accent or self.Window.Theme.Sidebar
         
-        Tween(knob, 0.2, { Position = UDim2.new(targetKnobPos, 0, 0.5, -7) })
+        trackGradient.Enabled = state
+        Tween(knob, 0.2, { Position = UDim2.new(targetKnobPos, 0, 0.5, -7) }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
         Tween(track, 0.2, { BackgroundColor3 = targetTrackColor })
         task.spawn(callback, state)
     end
@@ -686,6 +765,7 @@ function Section:CreateSlider(text, min, max, default, decimals, callback)
         TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Right
     }, sliderFrame)
+    valueLabel.Name = "AccentValue"
     
     -- Track background
     local track = CreateInstance("Frame", {
@@ -705,6 +785,14 @@ function Section:CreateSlider(text, min, max, default, decimals, callback)
     }, track)
     CreateInstance("UICorner", { CornerRadius = UDim.new(1, 0) }, progress)
     
+    local progressGradient = CreateInstance("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, self.Window.Theme.Accent),
+            ColorSequenceKeypoint.new(1, self.Window.Theme.AccentHover)
+        })
+    }, progress)
+    progressGradient.Name = "AccentGradient"
+    
     -- Knob
     local knob = CreateInstance("Frame", {
         Size = UDim2.new(0, 12, 0, 12),
@@ -715,6 +803,13 @@ function Section:CreateSlider(text, min, max, default, decimals, callback)
     CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 1 }, knob)
     
     local active = false
+    
+    sliderFrame.MouseEnter:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+    end)
+    sliderFrame.MouseLeave:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+    end)
     
     local function UpdateSlider(input)
         local inputX = input.Position.X
@@ -826,6 +921,13 @@ function Section:CreateDropdown(text, list, default, callback)
     
     local options = {}
     
+    dropdownFrame.MouseEnter:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+    end)
+    dropdownFrame.MouseLeave:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+    end)
+    
     local function ToggleDropdown(state)
         isOpened = state
         local targetHeight = isOpened and (38 + listLayout.AbsoluteContentSize.Y + 12) or 38
@@ -843,7 +945,6 @@ function Section:CreateDropdown(text, list, default, callback)
     end
     
     local function BuildOptions()
-        -- Clear old options
         for _, opt in pairs(options) do
             opt:Destroy()
         end
@@ -943,6 +1044,15 @@ function Section:CreateTextBox(text, placeholder, callback)
     CreateInstance("UICorner", { CornerRadius = UDim.new(0, 4) }, inputBox)
     local inputBorder = CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 1 }, inputBox)
     
+    textBoxFrame.MouseEnter:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+    end)
+    textBoxFrame.MouseLeave:Connect(function()
+        if not inputBox:IsFocused() then
+            Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+        end
+    end)
+    
     inputBox.Focused:Connect(function()
         Tween(inputBorder, 0.15, { Color = self.Window.Theme.Accent })
     end)
@@ -998,6 +1108,14 @@ function Section:CreateKeybind(text, defaultKey, callback)
     }, keybindFrame)
     CreateInstance("UICorner", { CornerRadius = UDim.new(0, 4) }, bindBox)
     local bindBorder = CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 1 }, bindBox)
+    bindBox.Name = "AccentValue"
+    
+    keybindFrame.MouseEnter:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+    end)
+    keybindFrame.MouseLeave:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+    end)
     
     bindBox.MouseButton1Click:Connect(function()
         binding = true
@@ -1014,7 +1132,6 @@ function Section:CreateKeybind(text, defaultKey, callback)
                 bindBox.Text = bind.Name
                 Tween(bindBorder, 0.15, { Color = self.Window.Theme.ElementBorder })
             elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-                -- clicking away/resetting
                 bind = nil
                 binding = false
                 bindBox.Text = "NONE"
@@ -1038,9 +1155,9 @@ function Section:CreateKeybind(text, defaultKey, callback)
     }
 end
 
--- ColorPicker
+-- COLOR PICKER REDESIGN: HSV rainbow spectrum controller decks with Hex/RGB text preview swatches
 function Section:CreateColorPicker(text, defaultColor, callback)
-    local selectedColor = defaultColor or Color3.fromRGB(99, 102, 241)
+    local h, s, v = Color3.toHSV(defaultColor or Color3.fromRGB(99, 102, 241))
     local isOpened = false
     
     local pickerFrame = CreateInstance("Frame", {
@@ -1064,11 +1181,11 @@ function Section:CreateColorPicker(text, defaultColor, callback)
         TextXAlignment = Enum.TextXAlignment.Left
     }, pickerFrame)
     
-    -- Color Preview Block
+    -- Swatch Preview
     local preview = CreateInstance("Frame", {
         Size = UDim2.new(0, 24, 0, 20),
         Position = UDim2.new(1, -34, 0.5, -10),
-        BackgroundColor3 = selectedColor
+        BackgroundColor3 = Color3.fromHSV(h, s, v)
     }, pickerFrame)
     CreateInstance("UICorner", { CornerRadius = UDim.new(0, 4) }, preview)
     local previewBorder = CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 1 }, preview)
@@ -1079,138 +1196,227 @@ function Section:CreateColorPicker(text, defaultColor, callback)
         Text = ""
     }, pickerFrame)
     
-    -- Expandable Color Adjustment Container (RGB Sliders)
-    local rVal, gVal, bVal = math.round(selectedColor.R*255), math.round(selectedColor.G*255), math.round(selectedColor.B*255)
+    pickerFrame.MouseEnter:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.Accent })
+    end)
+    pickerFrame.MouseLeave:Connect(function()
+        Tween(border, 0.15, { Color = self.Window.Theme.ElementBorder })
+    end)
     
-    local controlsFrame = CreateInstance("Frame", {
-        Size = UDim2.new(1, -20, 0, 95),
-        Position = UDim2.new(0, 10, 0, 38),
+    -- Layout Grid when expanded
+    local contents = CreateInstance("Frame", {
+        Size = UDim2.new(1, -20, 0, 105),
+        Position = UDim2.new(0, 10, 0, 42),
         BackgroundTransparency = 1
     }, pickerFrame)
     
-    local layout = CreateInstance("UIListLayout", {
-        Padding = UDim.new(0, 4)
-    }, controlsFrame)
+    -- Color Info Side-deck (Preview details block)
+    local details = CreateInstance("Frame", {
+        Size = UDim2.new(0, 110, 1, 0),
+        BackgroundColor3 = self.Window.Theme.Sidebar,
+        BorderSizePixel = 0
+    }, contents)
+    CreateInstance("UICorner", { CornerRadius = UDim.new(0, 6) }, details)
+    CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 0.5 }, details)
+    
+    local swatch = CreateInstance("Frame", {
+        Size = UDim2.new(0, 40, 0, 40),
+        Position = UDim2.new(0.5, -20, 0, 10),
+        BackgroundColor3 = Color3.fromHSV(h, s, v)
+    }, details)
+    CreateInstance("UICorner", { CornerRadius = UDim.new(0, 20) }, swatch) -- Rounded color sphere
+    local swatchBorder = CreateInstance("UIStroke", { Color = Color3.fromRGB(255, 255, 255), Transparency = 0.5, Thickness = 1.5 }, swatch)
+    
+    local hexLabel = CreateInstance("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 18),
+        Position = UDim2.new(0, 0, 0, 56),
+        BackgroundTransparency = 1,
+        Text = ColorToHex(Color3.fromHSV(h, s, v)),
+        TextColor3 = self.Window.Theme.Text,
+        Font = self.Window.Theme.FontBold,
+        TextSize = 10
+    }, details)
+    
+    local rgbLabel = CreateInstance("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 14),
+        Position = UDim2.new(0, 0, 0, 72),
+        BackgroundTransparency = 1,
+        Text = math.round(preview.BackgroundColor3.R*255)..", "..math.round(preview.BackgroundColor3.G*255)..", "..math.round(preview.BackgroundColor3.B*255),
+        TextColor3 = self.Window.Theme.TextSecondary,
+        Font = self.Window.Theme.Font,
+        TextSize = 9
+    }, details)
+    
+    -- Sliders Deck (Hue, Saturation, Value)
+    local sliders = CreateInstance("Frame", {
+        Size = UDim2.new(1, -125, 1, 0),
+        Position = UDim2.new(0, 125, 0, 0),
+        BackgroundTransparency = 1
+    }, contents)
+    
+    local slidersLayout = CreateInstance("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        SortOrder = Enum.SortOrder.LayoutOrder
+    }, sliders)
     
     local function TogglePicker(state)
         isOpened = state
-        local targetHeight = isOpened and 140 or 38
-        Tween(pickerFrame, 0.2, { Size = UDim2.new(1, 0, 0, targetHeight) })
+        local targetHeight = isOpened and 160 or 38
+        Tween(pickerFrame, 0.25, { Size = UDim2.new(1, 0, 0, targetHeight) }, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
     end
     
     clickArea.MouseButton1Click:Connect(function()
         TogglePicker(not isOpened)
     end)
     
-    local function UpdatePicker()
-        selectedColor = Color3.fromRGB(rVal, gVal, bVal)
-        preview.BackgroundColor3 = selectedColor
-        task.spawn(callback, selectedColor)
+    -- Dynamic update handler
+    local satGradient, valGradient
+    
+    local function UpdateColor()
+        local color = Color3.fromHSV(h, s, v)
+        preview.BackgroundColor3 = color
+        swatch.BackgroundColor3 = color
+        hexLabel.Text = ColorToHex(color)
+        rgbLabel.Text = math.round(color.R*255)..", "..math.round(color.G*255)..", "..math.round(color.B*255)
+        
+        -- Update gradients dynamically to reflect current HUE
+        if satGradient then
+            satGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+                ColorSequenceKeypoint.new(1, Color3.fromHSV(h, 1, 1))
+            })
+        end
+        if valGradient then
+            valGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.new(0, 0, 0)),
+                ColorSequenceKeypoint.new(1, Color3.fromHSV(h, 1, 1))
+            })
+        end
+        
+        task.spawn(callback, color)
     end
     
-    -- Helper to build slider row
-    local function CreateRGBSlider(name, max, defaultVal, colorTint, onUpdate)
+    -- Custom Slider track constructor
+    local function AddPickerSlider(name, defaultPct, layoutOrder, colorSequence, onSlide)
         local row = CreateInstance("Frame", {
             Size = UDim2.new(1, 0, 0, 26),
-            BackgroundColor3 = self.Window.Theme.Sidebar
-        }, controlsFrame)
+            BackgroundColor3 = self.Window.Theme.Sidebar,
+            LayoutOrder = layoutOrder
+        }, sliders)
         CreateInstance("UICorner", { CornerRadius = UDim.new(0, 4) }, row)
         CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 0.5 }, row)
         
-        local label = CreateInstance("TextLabel", {
+        local sliderLabel = CreateInstance("TextLabel", {
             Size = UDim2.new(0, 20, 1, 0),
             Position = UDim2.new(0, 8, 0, 0),
             BackgroundTransparency = 1,
             Text = name,
-            TextColor3 = colorTint,
+            TextColor3 = self.Window.Theme.TextSecondary,
             Font = self.Window.Theme.FontBold,
             TextSize = 11
         }, row)
         
         local track = CreateInstance("Frame", {
-            Size = UDim2.new(1, -70, 0, 4),
-            Position = UDim2.new(0, 32, 0.5, -2),
-            BackgroundColor3 = self.Window.Theme.Element
+            Size = UDim2.new(1, -44, 0, 8),
+            Position = UDim2.new(0, 36, 0.5, -4),
+            BackgroundColor3 = Color3.fromRGB(0,0,0)
         }, row)
         CreateInstance("UICorner", { CornerRadius = UDim.new(1, 0) }, track)
         
-        local progress = CreateInstance("Frame", {
-            Size = UDim2.new(defaultVal/max, 0, 1, 0),
-            BackgroundColor3 = colorTint
+        local trackGrad = CreateInstance("UIGradient", {
+            Color = colorSequence
         }, track)
-        CreateInstance("UICorner", { CornerRadius = UDim.new(1, 0) }, progress)
         
         local knob = CreateInstance("Frame", {
-            Size = UDim2.new(0, 10, 0, 10),
-            Position = UDim2.new(defaultVal/max, -5, 0.5, -5),
+            Size = UDim2.new(0, 12, 0, 12),
+            Position = UDim2.new(defaultPct, -6, 0.5, -6),
             BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         }, track)
         CreateInstance("UICorner", { CornerRadius = UDim.new(1, 0) }, knob)
+        CreateInstance("UIStroke", { Color = self.Window.Theme.ElementBorder, Thickness = 1 }, knob)
         
-        local valLabel = CreateInstance("TextLabel", {
-            Size = UDim2.new(0, 30, 1, 0),
-            Position = UDim2.new(1, -34, 0, 0),
-            BackgroundTransparency = 1,
-            Text = tostring(defaultVal),
-            TextColor3 = self.Window.Theme.TextSecondary,
-            Font = self.Window.Theme.Font,
-            TextSize = 11
-        }, row)
+        local active = false
         
-        local dragging = false
-        
-        local function UpdateSlider(input)
+        local function UpdateSlide(input)
             local percentage = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-            local currentVal = math.round(percentage * max)
-            
-            progress.Size = UDim2.new(percentage, 0, 1, 0)
-            knob.Position = UDim2.new(percentage, -5, 0.5, -5)
-            valLabel.Text = tostring(currentVal)
-            
-            onUpdate(currentVal)
+            knob.Position = UDim2.new(percentage, -6, 0.5, -6)
+            onSlide(percentage)
         end
         
         row.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-                UpdateSlider(input)
+                active = true
+                UpdateSlide(input)
             end
         end)
         
         UserInputService.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
+                active = false
             end
         end)
         
         UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                UpdateSlider(input)
+            if active and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                UpdateSlide(input)
             end
         end)
+        
+        return trackGrad, knob, track
     end
     
-    CreateRGBSlider("R", 255, rVal, Color3.fromRGB(239, 68, 68), function(val)
-        rVal = val
-        UpdatePicker()
+    -- Hue Slider (Rainbow)
+    local rainbowColors = {
+        ColorSequenceKeypoint.new(0/6, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(1/6, Color3.fromRGB(255, 255, 0)),
+        ColorSequenceKeypoint.new(2/6, Color3.fromRGB(0, 255, 0)),
+        ColorSequenceKeypoint.new(3/6, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(4/6, Color3.fromRGB(0, 0, 255)),
+        ColorSequenceKeypoint.new(5/6, Color3.fromRGB(255, 0, 255)),
+        ColorSequenceKeypoint.new(6/6, Color3.fromRGB(255, 0, 0))
+    }
+    
+    AddPickerSlider("H", h, 1, ColorSequence.new(rainbowColors), function(val)
+        h = val
+        UpdateColor()
     end)
     
-    CreateRGBSlider("G", 255, gVal, Color3.fromRGB(34, 197, 94), function(val)
-        gVal = val
-        UpdatePicker()
+    -- Saturation Slider (White -> Hue)
+    local satGradObj, satKnob, satTrack = AddPickerSlider("S", s, 2, ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+        ColorSequenceKeypoint.new(1, Color3.fromHSV(h, 1, 1))
+    }), function(val)
+        s = val
+        UpdateColor()
     end)
+    satGradient = satGradObj
     
-    CreateRGBSlider("B", 255, bVal, Color3.fromRGB(59, 130, 246), function(val)
-        bVal = val
-        UpdatePicker()
+    -- Value/Brightness Slider (Black -> Hue)
+    local valGradObj, valKnob, valTrack = AddPickerSlider("V", v, 3, ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.new(0, 0, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromHSV(h, 1, 1))
+    }), function(val)
+        v = val
+        UpdateColor()
     end)
+    valGradient = valGradObj
     
     return {
         SetValue = function(color)
-            rVal, gVal, bVal = math.round(color.R*255), math.round(color.G*255), math.round(color.B*255)
-            UpdatePicker()
+            h, s, v = Color3.toHSV(color)
+            UpdateColor()
+            -- Set slider knobs positions
+            Tween(satKnob, 0.15, { Position = UDim2.new(s, -6, 0.5, -6) })
+            Tween(valKnob, 0.15, { Position = UDim2.new(v, -6, 0.5, -6) })
+            -- Find Hue knob in parents
+            task.spawn(function()
+                local hueKnob = sliders:GetChildren()[1]:FindFirstChild("Knob", true)
+                if hueKnob then
+                    Tween(hueKnob, 0.15, { Position = UDim2.new(h, -6, 0.5, -6) })
+                end
+            end)
         end,
-        GetValue = function() return selectedColor end
+        GetValue = function() return Color3.fromHSV(h, s, v) end
     }
 end
 
