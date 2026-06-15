@@ -983,14 +983,10 @@ end
 
 function Window:SelectTab(tabObj)
     if self.ActiveTab then
-        local oldTab = self.ActiveTab
-        local oldGroup = oldTab.Page.Parent
-        Tween(oldGroup, 0.15, { GroupTransparency = 1 })
-        task.delay(0.15, function()
-            if self.ActiveTab ~= oldTab then
-                oldGroup.Visible = false
-            end
-        end)
+        local oldGroup = self.ActiveTab.Page.Parent
+        oldGroup.Visible = false
+        oldGroup.GroupTransparency = 1
+        
         Tween(self.ActiveTab.Button, 0.2, { BackgroundColor3 = self.Theme.Sidebar })
         Tween(self.ActiveTab.TextLabel, 0.2, { TextColor3 = self.Theme.TextSecondary })
         if self.ActiveTab.IconLabel then
