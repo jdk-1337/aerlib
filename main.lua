@@ -726,8 +726,7 @@ function AerLib:CreateWindow(title, subtitle)
     local connection
     connection = UserInputService.InputBegan:Connect(function(input, processed)
         if input.KeyCode == self.ToggleKey and not UserInputService:GetFocusedTextBox() then
-            self.Toggled = not self.Toggled
-            screenGui.Enabled = self.Toggled
+            screenGui.Enabled = not screenGui.Enabled
         end
     end)
     
