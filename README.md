@@ -15,7 +15,7 @@ local AerLib = require(game:GetService("ReplicatedStorage"):WaitForChild("aerlib
 ### Executor Environment (Loadstring)
 Load the library dynamically in scripts:
 ```lua
-local AerLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/YourUsername/aerlib/main/aerlib.lua"))()
+local AerLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jdk-1337/aerlib/refs/heads/main/main.lua"))()
 ```
 
 ---
