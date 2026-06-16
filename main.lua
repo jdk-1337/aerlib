@@ -784,7 +784,7 @@ function AerLib:CreateWindow(title, subtitle)
     local connection
     local isToggling = false
     connection = UserInputService.InputBegan:Connect(function(input, processed)
-        if input.KeyCode == self.ToggleKey and not UserInputService:GetFocusedTextBox() and not isToggling then
+        if input.KeyCode == AerLib.ToggleKey and not UserInputService:GetFocusedTextBox() and not isToggling then
             isToggling = true
             if screenGui.Enabled then
                 Tween(uiScale, 0.2, { Scale = 0.85 }, Enum.EasingStyle.Cubic, Enum.EasingDirection.In)
@@ -1590,6 +1590,7 @@ function Section:CreateDropdown(text, list, default, callback)
     end)
     
     listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        listContainer.Size = UDim2.new(1, -16, 0, listLayout.AbsoluteContentSize.Y)
         if isOpened then
             dropdownFrame.Size = UDim2.new(1, 0, 0, 38 + listLayout.AbsoluteContentSize.Y + 12)
         end
@@ -1685,9 +1686,7 @@ function Section:CreateKeybind(text, defaultKey, callback)
     
     -- Auto-bind library toggle key on creation
     if text:lower():find("toggle") or text:lower():find("open/close") then
-        if self.Window and self.Window.WindowLibrary then
-            self.Window.WindowLibrary.ToggleKey = bind
-        end
+        AerLib.ToggleKey = bind
     end
     
     local keybindFrame = CreateInstance("Frame", {
@@ -1756,9 +1755,7 @@ function Section:CreateKeybind(text, defaultKey, callback)
             
             -- Auto-bind library toggle key on update
             if text:lower():find("toggle") or text:lower():find("open/close") then
-                if self.Window and self.Window.WindowLibrary then
-                    self.Window.WindowLibrary.ToggleKey = bind
-                end
+                AerLib.ToggleKey = bind
             end
             
             if callback then
@@ -1780,9 +1777,7 @@ function Section:CreateKeybind(text, defaultKey, callback)
             bind = key
             bindBox.Text = bind and bind.Name or "NONE"
             if text:lower():find("toggle") or text:lower():find("open/close") then
-                if self.Window and self.Window.WindowLibrary then
-                    self.Window.WindowLibrary.ToggleKey = bind
-                end
+                AerLib.ToggleKey = bind
             end
         end,
         GetKey = function() return bind end
