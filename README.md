@@ -15,7 +15,7 @@ local AerLib = require(game:GetService("ReplicatedStorage"):WaitForChild("aerlib
 ### Executor Environment (Loadstring)
 Load the library dynamically in scripts:
 ```lua
-local AerLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/jdk-1337/aerlib/refs/heads/main/main.lua"))()
+local AerLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/YourUsername/aerlib/main/aerlib.lua"))()
 ```
 
 ---
@@ -51,6 +51,16 @@ Now you can add interactive elements inside your sections. Below are examples of
 ## API & Element Reference
 
 Every interactive element created returns a table containing getter and setter methods. Use **dot notation** (e.g. `Element.SetValue(...)`) to access them programmatically.
+
+### Tab Badges
+Adds a small decorative text pill (like "NEW", "BETA", or numbers) to the right side of a Tab in the sidebar list.
+```lua
+local CombatTab = Window:CreateTab("Combat", "swords")
+CombatTab:SetBadge("BETA")
+
+-- Remove badge:
+CombatTab:SetBadge("")
+```
 
 ### Buttons
 Creates a standard clickable button.
@@ -137,6 +147,33 @@ end)
 -- Programmatic usage:
 espColorPicker.SetValue(Color3.fromRGB(0, 255, 0))
 local currentEspColor = espColorPicker.GetValue()
+```
+
+### Button Rows
+Creates a compact horizontal list containing up to 3 smaller action buttons to save vertical space.
+```lua
+local buttons = Section:CreateButtonRow({
+    {Text = "Action 1", Callback = function() print("1 pressed") end},
+    {Text = "Action 2", Callback = function() print("2 pressed") end},
+    {Text = "Action 3", Callback = function() print("3 pressed") end}
+})
+
+-- Programmatic usage (change text of button 1):
+buttons[1].SetText("New Action")
+```
+
+### Toggles with Keybinds
+Creates a standard toggle switch paired with an editable keybind badge next to it. Pressing the bound key automatically flips the toggle state.
+```lua
+local flightToggle = Section:CreateToggleWithKeybind("Flight Mode", false, Enum.KeyCode.F, function(state)
+    print("Flight mode is: " .. tostring(state))
+end)
+
+-- Programmatic usage:
+flightToggle.SetValue(true)
+flightToggle.SetKey(Enum.KeyCode.G)
+local isFlying = flightToggle.GetValue()
+local currentKey = flightToggle.GetKey()
 ```
 
 ### Labels & Paragraphs
