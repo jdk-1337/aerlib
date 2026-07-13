@@ -1,8 +1,3 @@
---[[
-    AerLib - A Premium, Sleek, and Feature-Rich Roblox Luau UI Library
-    Created with modern design principles (glassmorphism, smooth tweens, and complete customizability).
-]]
-
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
